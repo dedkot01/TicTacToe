@@ -1,0 +1,318 @@
+/*
+ * Сервер для игры "Крестики-нолики"
+ */
+package tictactoeserver;
+
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.util.ArrayList;
+
+/**
+ * @author dedkot
+ */
+public class MainFormServer extends javax.swing.JFrame {
+    private ServerThread serverThread;  // нить Сервера, обрабатывает входящие соединения
+    
+        
+    /**
+     * Объект класса {@code ServerThread} обрабатывает входящие подключения.
+     * Расширен от класса {@code Thread}.
+     */
+    class ServerThread extends Thread {
+        private ServerSocket ss;            // сокет, прослушивающий порт
+        private ArrayList<Client> clients;   // нитки для клиентов, обрабатывают все сообщения
+        
+        private String[] field;           // игровое поле
+        
+        /**
+         * Конструктор инициализирует сокет для прослушивания порта, игровое поле
+         * и массив клиентов.
+         * @param port прослушиваемый порт для входящих подключений
+         * @throws IOException 
+         */
+        ServerThread(int port) throws IOException {
+            // Инициализирует поле, прослушивает порт
+            field = new String[9];
+            ss = new ServerSocket(port, 2);
+            // Инициализирует объекты клиентов
+            clients = new ArrayList<>();
+            clients.add(new Client(field, "X", taLog));
+            clients.add(new Client(field, "O", taLog));
+        }
+        
+        /**
+         * Выполняет остановку сервера.
+         */
+        public void shutdown() {
+            try {
+                if (clients.get(0) != null && clients.get(0).isAlive())
+                    clients.get(0).sendMsg("Disconnect");
+                if (clients.get(1) != null && clients.get(1).isAlive())
+                    clients.get(1).sendMsg("Disconnect");
+                if (ss != null && !ss.isClosed()) {
+                    ss.close();
+                }
+            } catch (IOException ex) {
+                taLog.append("ОШИБКА! " + ex.getMessage());
+            }
+        }
+        
+        /**
+         * Главный метод нити
+         */
+        @Override
+        public void run()
+        {
+            try {
+                taLog.append("Сервер запущен.\n");
+                // Ожидает подключения двух клиентов
+                while (!clients.get(0).isConnection() || !clients.get(1).isConnection()) {
+                    if (!clients.get(0).isConnection()) {
+                        taLog.append("Ждём первого игрока...\n");
+                        clients.set(0, new Client(field, "X", taLog));
+                        clients.get(0).setSocket(ss.accept());
+                        clients.get(0).sendMsg("WaitEnemy");
+                        clients.get(0).start();
+                        taLog.append("Подключился первый игрок.\n");
+                    }
+
+                    if (!clients.get(1).isConnection()) {
+                        taLog.append("Ждём второго игрока...\n");
+                        clients.set(1, new Client(field, "O", taLog));
+                        clients.get(1).setSocket(ss.accept());
+                        clients.get(1).sendMsg("WaitEnemy");
+                        clients.get(1).start();
+                        taLog.append("Подключился второй игрок.\n");
+                    }
+                }
+                
+                // Распределение сторон между клиентами
+                clients.get(0).setEnemy(clients.get(1));
+                clients.get(1).setEnemy(clients.get(0));
+                clients.get(0).sendMsg("X");
+                clients.get(1).sendMsg("O");
+                taLog.append("Все игроки готовы, начинается игра.\n");
+                
+                // Первому клиенту даётся шаг
+                clients.get(0).sendMsg("UStep");
+                clients.get(1).sendMsg("EnemyStep");
+                
+                // Ждём, пока закончится игра
+                clients.get(0).join();
+                clients.get(1).join();
+                
+                // Закрываем все соединения
+                clients.get(0).close();
+                clients.get(1).close();
+                ss.close();
+                taLog.append("Сервер остановлен.\n");
+                
+                tfPort.setEditable(true);
+                butStartStopServer.setText("Запуск");
+            } catch (IOException ex) {
+                taLog.append("Сервер остановлен.\n");
+                tfPort.setEditable(true);
+                butStartStopServer.setText("Запуск");
+            } catch (InterruptedException ex) {
+                taLog.append("ОШИБКА ПОТОКОВ!\nException: " + ex.getMessage() + "\n");
+            }
+        }
+    }
+    
+    /**
+     * Creates new form MainForm
+     */
+    public MainFormServer() {
+        initComponents();
+    }
+
+    /**
+     * This method is called from within the constructor to initialize the form.
+     * WARNING: Do NOT modify this code. The content of this method is always
+     * regenerated by the Form Editor.
+     */
+    @SuppressWarnings("unchecked")
+    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
+    private void initComponents() {
+        java.awt.GridBagConstraints gridBagConstraints;
+
+        lPort = new javax.swing.JLabel();
+        tfPort = new javax.swing.JTextField();
+        butStartStopServer = new javax.swing.JButton();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        taLog = new javax.swing.JTextArea();
+        butClearLog = new javax.swing.JButton();
+
+        setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setTitle("Крестики-нолики: Сервер");
+        setLocation(new java.awt.Point(200, 200));
+        setMaximumSize(new java.awt.Dimension(400, 500));
+        setMinimumSize(new java.awt.Dimension(400, 500));
+        setPreferredSize(new java.awt.Dimension(400, 500));
+        setResizable(false);
+        getContentPane().setLayout(new java.awt.GridBagLayout());
+
+        lPort.setText("Порт:");
+        lPort.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                lPortMouseClicked(evt);
+            }
+        });
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 0;
+        gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
+        gridBagConstraints.ipadx = 13;
+        gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 0);
+        getContentPane().add(lPort, gridBagConstraints);
+
+        tfPort.setText("8888");
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 1;
+        gridBagConstraints.gridy = 0;
+        gridBagConstraints.gridwidth = 2;
+        gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
+        gridBagConstraints.insets = new java.awt.Insets(5, 0, 5, 5);
+        getContentPane().add(tfPort, gridBagConstraints);
+
+        butStartStopServer.setText("Запуск");
+        butStartStopServer.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                butStartStopServerActionPerformed(evt);
+            }
+        });
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 1;
+        gridBagConstraints.gridwidth = 2;
+        gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
+        gridBagConstraints.ipady = 13;
+        gridBagConstraints.weightx = 0.1;
+        gridBagConstraints.insets = new java.awt.Insets(0, 5, 0, 5);
+        getContentPane().add(butStartStopServer, gridBagConstraints);
+
+        jScrollPane1.setMaximumSize(new java.awt.Dimension(390, 100000));
+        jScrollPane1.setMinimumSize(new java.awt.Dimension(390, 380));
+        jScrollPane1.setPreferredSize(new java.awt.Dimension(370, 380));
+
+        taLog.setEditable(false);
+        taLog.setColumns(20);
+        taLog.setRows(5);
+        taLog.setCursor(new java.awt.Cursor(java.awt.Cursor.TEXT_CURSOR));
+        taLog.setMaximumSize(new java.awt.Dimension(390, 380));
+        taLog.setMinimumSize(new java.awt.Dimension(390, 380));
+        taLog.setPreferredSize(new java.awt.Dimension(390, 380));
+        jScrollPane1.setViewportView(taLog);
+
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 2;
+        gridBagConstraints.gridwidth = 3;
+        gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
+        gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 5);
+        getContentPane().add(jScrollPane1, gridBagConstraints);
+
+        butClearLog.setText("Очистить");
+        butClearLog.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                butClearLogActionPerformed(evt);
+            }
+        });
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 2;
+        gridBagConstraints.gridy = 1;
+        gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
+        gridBagConstraints.ipady = 13;
+        gridBagConstraints.insets = new java.awt.Insets(0, 0, 0, 5);
+        getContentPane().add(butClearLog, gridBagConstraints);
+
+        pack();
+    }// </editor-fold>//GEN-END:initComponents
+    
+    // Метод обработки кнопки Запуск/Остановить
+    private void butStartStopServerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_butStartStopServerActionPerformed
+        // Если запущена нить Сервера, тогда выполнить его остановку, закрывает все соединения
+        if (serverThread != null && serverThread.isAlive()) {
+            serverThread.shutdown();
+            try {
+                serverThread.join();
+            } catch (InterruptedException ex) {
+                taLog.append("ОШИБКА! Поток сервера не смог завершиться корректно.");
+            }
+            
+            tfPort.setEditable(true);
+            butStartStopServer.setText("Запуск");
+        // Иначе произвести запуск Сервера, проверяет введённый порт на корректность и запускает нить Сервер
+        } else {
+            try {
+                serverThread = new ServerThread(Integer.parseInt(tfPort.getText()));
+                serverThread.start();
+
+                tfPort.setEditable(false);
+                butStartStopServer.setText("Остановить");
+            } catch (IOException ex) {
+                taLog.append("Не удаётся запустить сервер. Возможно порт занят.\n");
+            } catch (NumberFormatException ex) {
+                taLog.append("Порт указан неккоректно.\n");
+            }
+        }
+    }//GEN-LAST:event_butStartStopServerActionPerformed
+
+    // Очищает поле ввода порта
+    private void lPortMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_lPortMouseClicked
+        if (tfPort.isEditable())
+            tfPort.setText("");
+    }//GEN-LAST:event_lPortMouseClicked
+
+    // Очищает лог сервера
+    private void butClearLogActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_butClearLogActionPerformed
+        taLog.setText("");
+    }//GEN-LAST:event_butClearLogActionPerformed
+   
+    /**
+     * @param args the command line arguments
+     */
+    public static void main(String args[]) {
+        /* Set the Nimbus look and feel */
+        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
+        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
+         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
+         */
+        try {
+            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+                if ("Nimbus".equals(info.getName())) {
+                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
+                    break;
+                }
+            }
+        } catch (ClassNotFoundException ex) {
+            java.util.logging.Logger.getLogger(MainFormServer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+        } catch (InstantiationException ex) {
+            java.util.logging.Logger.getLogger(MainFormServer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+        } catch (IllegalAccessException ex) {
+            java.util.logging.Logger.getLogger(MainFormServer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
+            java.util.logging.Logger.getLogger(MainFormServer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+        }
+        //</editor-fold>
+        //</editor-fold>
+
+        /* Create and display the form */
+        java.awt.EventQueue.invokeLater(new Runnable() {
+            public void run() {
+                new MainFormServer().setVisible(true);
+            }
+        });
+    }
+
+    // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton butClearLog;
+    private javax.swing.JButton butStartStopServer;
+    private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JLabel lPort;
+    private javax.swing.JTextArea taLog;
+    private javax.swing.JTextField tfPort;
+    // End of variables declaration//GEN-END:variables
+}
